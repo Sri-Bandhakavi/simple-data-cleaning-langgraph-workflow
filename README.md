@@ -20,6 +20,12 @@ The workflow follows these steps:
 6. **Describe Data** - Generates statistical summary of cleaned data
 7. **Output Results** - Prints the action taken and final summary
 
+## Workflow Graph
+
+Below is the generated LangGraph execution flow:
+
+![Workflow Graph](outputs/workflow_graph.png)
+
 ## Setup
 
 ### Windows (PowerShell)
