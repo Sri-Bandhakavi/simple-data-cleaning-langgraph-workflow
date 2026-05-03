@@ -27,6 +27,7 @@ poetry.lock
 # Generated workflow graphs
 outputs/*
 !outputs/.gitkeep
+!outputs/workflow_graph.png
 
 # OS
 .DS_Store
