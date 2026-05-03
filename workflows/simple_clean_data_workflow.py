@@ -16,12 +16,12 @@ PROJECT_ROOT = Path(__file__).parent.parent
 # 1. Shared State Definition
 # ---------------------------
 
+    #Define the "state" object and what it contains
 class DataState(TypedDict):
     csv_path: str
     df: pd.DataFrame
     action: Literal["clean_missing", "remove_outliers", "both"]
     summary: str
-
 
 # ---------------------------
 # 2. Initialize LLM
@@ -69,6 +69,7 @@ def reasoning_node(state: DataState) -> DataState:
         "You are a data science assistant. "
         "Given this dataset summary, decide which single action is most appropriate: "
         "'clean_missing', 'remove_outliers', or 'both'.\n\n"
+        "If both missing values and outliers exist, choose 'both'.\n\n"
         f"{state['summary']}\n\n"
         "Respond only with one of: clean_missing, remove_outliers, both."
     )
@@ -79,8 +80,9 @@ def reasoning_node(state: DataState) -> DataState:
     return state
 
 
+
 def handle_missing_values(state: DataState) -> DataState:
-    """Fill missing numeric values with the column mean."""
+    """Fill missing numeric values with the column mean (used when 'clean_missing' is selected)."""
     df = state["df"].copy()
     for col in df.select_dtypes(include="number").columns:
         df[col] = df[col].fillna(df[col].mean())
@@ -89,7 +91,7 @@ def handle_missing_values(state: DataState) -> DataState:
 
 
 def remove_outliers(state: DataState) -> DataState:
-    """Remove outliers using IQR method."""
+    """Remove outliers using IQR method (used when 'remove_outliers' is selected)."""
     df = state["df"].copy()
     numeric_cols = df.select_dtypes(include="number").columns
     
@@ -104,6 +106,12 @@ def remove_outliers(state: DataState) -> DataState:
     state["df"] = df
     return state
 
+def handle_both(state: DataState) -> DataState:
+    """Fill missing values, then remove outliers (used when the LLM selects 'both')"""
+    state = handle_missing_values(state)
+    state = remove_outliers(state)
+    return state
+
 
 def describe_data(state: DataState) -> DataState:
     """Describe numeric columns after any cleaning."""
@@ -111,10 +119,20 @@ def describe_data(state: DataState) -> DataState:
     return state
 
 
-def output_results(state: DataState):
-    print(f"\n=== ACTION DECIDED: {state['action'].upper()} ===\n")
-    print(state["summary"])
+#def output_results(state: DataState):
+    #print(f"\n=== ACTION DECIDED: {state['action'].upper()} ===\n")
+    #print(state["summary"])
 
+#Use this alt function in case so we show that data was cleaned (along with the action performed) or not cleaned 
+def output_results(state: DataState):
+    action = state["action"]
+
+    if action == "none":
+        print("\n=== NO CLEANING PERFORMED ===\n")
+    else:
+        print(f"\n=== ACTION DECIDED: {action.upper()} ===\n")
+
+    print(state["summary"])
 
 # ---------------------------
 # 4. Router Function
@@ -125,8 +143,10 @@ def route_action(state: DataState) -> str:
     mapping = {
         "clean_missing": "handle_missing_values",
         "remove_outliers": "remove_outliers",
+        "both": "handle_both",
         "none": "describe_data",
     }
+    # Return next node for graph to execute based on state["action"] (describe_date is default if action == "none" per output_results function)
     return mapping.get(state["action"], "describe_data")
 
 
@@ -141,6 +161,7 @@ workflow.add_node("summarize_data", summarize_data)
 workflow.add_node("reasoning_node", reasoning_node)
 workflow.add_node("handle_missing_values", handle_missing_values)
 workflow.add_node("remove_outliers", remove_outliers)
+workflow.add_node("handle_both", handle_both)
 workflow.add_node("describe_data", describe_data)
 workflow.add_node("output_results", output_results)
 
@@ -150,10 +171,12 @@ workflow.add_edge("summarize_data", "reasoning_node")
 workflow.add_conditional_edges("reasoning_node", route_action, {
     "handle_missing_values": "handle_missing_values",
     "remove_outliers": "remove_outliers",
+    "handle_both": "handle_both",
     "describe_data": "describe_data",
 })
 workflow.add_edge("handle_missing_values", "describe_data")
 workflow.add_edge("remove_outliers", "describe_data")
+workflow.add_edge("handle_both", "describe_data")
 workflow.add_edge("describe_data", "output_results")
 workflow.add_edge("output_results", END)
 
@@ -184,7 +207,7 @@ if __name__ == "__main__":
     save_graph_visualization()
     
     # Run the workflow
-    csv_path = str(PROJECT_ROOT / "data" / "missing.csv")
+    csv_path = str(PROJECT_ROOT / "data" / "missing_and_outliers.csv")
     init_state: DataState = {
         "csv_path": csv_path,
         "df": None,

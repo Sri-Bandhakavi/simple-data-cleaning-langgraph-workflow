@@ -1,6 +1,6 @@
 # LangGraph Workflow Example
 
-A simple example demonstrating how to build workflows with LangGraph for data processing.
+A simple example demonstrating how to build a structured, LLM-driven workflow with LangGraph for data processing.
 
 ## How It Works
 
@@ -11,11 +11,12 @@ The workflow follows these steps:
    - Statistical description (`.describe()`)
    - Dataset info (`.info()`)
    - Explicit missing value counts
-3. **LLM Reasoning** - Uses GPT-4o-mini to analyze the summary and decide which action to take
-4. **Conditional Routing** - Routes to appropriate cleaning node based on LLM decision
+3. **LLM Reasoning** - Uses GPT-4o-mini to analyze the summarized data and select a cleaning action (`clean_missing`, `remove_outliers`, or `both`)
+4. **Conditional Routing** - Routes to appropriate cleaning node based on LLM decision. If the LLM returns an unrecognized response, the workflow defaults to no cleaning and proceeds directly to describing the data.
 5. **Data Cleaning** - Can execute:
    - **Handle Missing Values** - Fills numeric missing values with column means
    - **Remove Outliers** - Removes outliers using IQR (Interquartile Range) method
+   - **Both** - Applies missing value imputation followed by outlier removal
 6. **Describe Data** - Generates statistical summary of cleaned data
 7. **Output Results** - Prints the action taken and final summary
 
